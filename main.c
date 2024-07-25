@@ -12,11 +12,12 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#define HTML_PATH "."
 #define DEFAULT_FILE "index.html"
 
 int global_port = 80;
 int global_max_cons = 20;
+char global_path[256] = ".";
+GtkApplication *main_app;
 bool stop_server = false;
 GThread *server_thread = NULL;
 
@@ -26,13 +27,28 @@ typedef struct {
     GtkWidget *btn_stop;
     GtkEntryBuffer *entry_buffer;
     GtkEntryBuffer *entry_buffer_max_cons;
+    GtkEntryBuffer *entry_buffer_path;
 } WidgetData;
 
+void show_error_dialog(GtkApplication *app, const char *message) {
+    GtkWidget *dialog;      
 
+    dialog = gtk_message_dialog_new(NULL,
+                                    GTK_DIALOG_DESTROY_WITH_PARENT,
+                                    GTK_MESSAGE_ERROR,
+                                    GTK_BUTTONS_CLOSE,
+                                    "%s", message);
+
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(gtk_application_get_active_window(app)));
+
+    g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
+
+    gtk_window_present(GTK_WINDOW(dialog));
+}
 
 void err_exit(char *message)
 {
-    perror(message);
+    perror(message);       
     exit(EXIT_FAILURE);
 }
 
@@ -95,10 +111,10 @@ void http_service(int client_fd)
     {
         send(client_fd, "HTTP/1.0 404 Not Found\r\n"
                         "Content-type: text/html\r\n"
-                        "Content-length: 91\r\n\r\n"
+                        "Content-length: 117\r\n\r\n"
                         "<html><head><title>Error</title></head>"
-                        "<body><hr><h2>File not found.</h2><hr>"
-                        "</body></html>", 162, 0);
+                        "<body><hr><h2>index.html not found !</h2>Tiny-Webserver-GTK4<hr>"
+                        "</body></html>", 200, 0);
         return;
     }
 
@@ -128,7 +144,7 @@ gpointer start_server(gpointer user_data)
     WidgetData *data = (WidgetData *)user_data;
     
     int port_value = atoi(gtk_entry_buffer_get_text(data->entry_buffer));
-    printf("webserver: Start server on port %d max. %d connections.\n", port_value, global_max_cons);
+    printf("webserver: Start server on port %d max. %d connections. Path to index.html:%s\n", port_value, global_max_cons, global_path);
     int sock_fd, client_fd, err, addr_size;
     struct sockaddr_in my_addr, client_addr;
     fd_set read_fds;
@@ -154,10 +170,7 @@ gpointer start_server(gpointer user_data)
     err = listen(sock_fd, global_max_cons);
     if(err == -1)
         err_exit("webserver: Can't listen on socket\n");
-
-    if(chdir(HTML_PATH) != 0)
-        err_exit("webserver: Can't set HTML path\n");
-
+    
     signal(SIGCHLD, SIG_IGN);    
 
     while(!stop_server)
@@ -201,19 +214,27 @@ gpointer start_server(gpointer user_data)
     return NULL;
 }
 
-static void btn_start_clicked(GtkWidget *widget, gpointer user_data) {
+static void btn_start_clicked(GtkWidget *widget, gpointer user_data) {    
     GError *error = NULL;
     WidgetData *data = (WidgetData *)user_data;
-
+    
+    strcpy(global_path, gtk_entry_buffer_get_text(data->entry_buffer_path));    
     global_port = atoi(gtk_entry_buffer_get_text(data->entry_buffer));
     global_max_cons = atoi(gtk_entry_buffer_get_text(data->entry_buffer_max_cons));
+    if(chdir(global_path) != 0)
+    {
+        show_error_dialog(main_app, "Can't set HTML path");
+        return;
+    }
+    
     gtk_label_set_label(GTK_LABEL(data->lbl_status), "On");
     gtk_widget_set_sensitive(data->btn_start, FALSE);
     gtk_widget_set_sensitive(data->btn_stop, TRUE);
-
+    
     stop_server = false;
     server_thread = g_thread_try_new("webserver", start_server, data, &error);
     if (!server_thread) {
+        show_error_dialog(main_app, "Failed to create thread");
         g_printerr("Failed to create thread: %s\n", error->message);
         g_error_free(error);
         return;
@@ -222,6 +243,8 @@ static void btn_start_clicked(GtkWidget *widget, gpointer user_data) {
 
 static void btn_stop_clicked(GtkWidget *widget, gpointer user_data) {
     WidgetData *data = (WidgetData *)user_data;
+    
+    strcpy(global_path, gtk_entry_buffer_get_text(data->entry_buffer_path));
 
     if (server_thread != NULL) {
         stop_server = true;
@@ -236,24 +259,28 @@ static void btn_stop_clicked(GtkWidget *widget, gpointer user_data) {
 
 static void activate(GtkApplication *app, gpointer user_data)
 {
-    GtkWidget *window, *lbl_status_title, *lbl_port_title, *lbl_max_cons_title, *entry_max_cons;
-    GtkWidget *lbl_status, *entry_port, *btn_start, *btn_stop, *grid, *center_box;
-    GtkEntryBuffer *buffer_port, *buffer_max_cons;
+    GtkWidget *window, *lbl_status_title, *lbl_port_title, *lbl_max_cons_title, *entry_max_cons, *lbl_about;
+    GtkWidget *lbl_status, *entry_port, *btn_start, *btn_stop, *grid, *center_box, *lbl_path, *entry_path;
+    GtkEntryBuffer *buffer_port, *buffer_max_cons, *buffer_path;
     WidgetData *data = g_new(WidgetData, 1);
 
     window = gtk_application_window_new(app);
+    
     gtk_window_set_title(GTK_WINDOW(window), "Tiny-Webserver-GTK4");
-    gtk_window_set_default_size(GTK_WINDOW(window), 450, 200);
+    gtk_window_set_default_size(GTK_WINDOW(window), 450, 300);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
-
+  
     grid = gtk_grid_new();
     center_box = gtk_center_box_new();
     lbl_status = gtk_label_new("Off");
     lbl_port_title = gtk_label_new("Port:");
     lbl_status_title = gtk_label_new("Status:");
     lbl_max_cons_title = gtk_label_new("Max connections:");
+    lbl_path = gtk_label_new("Path to index.html:");
+    lbl_about = gtk_label_new("Version: 1.2 - 2024 by Lennart Martens");
     entry_max_cons = gtk_entry_new();
     entry_port = gtk_entry_new();
+    entry_path = gtk_entry_new();
     
     btn_start = gtk_button_new_with_label("Start");
     btn_stop = gtk_button_new_with_label("Stop");
@@ -262,35 +289,44 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_entry_set_buffer(GTK_ENTRY(entry_port), buffer_port);
     buffer_max_cons = gtk_entry_buffer_new("20", -1);
     gtk_entry_set_buffer(GTK_ENTRY(entry_max_cons), buffer_max_cons);
+    buffer_path = gtk_entry_buffer_new(".", -1);
+    gtk_entry_set_buffer(GTK_ENTRY(entry_path), buffer_path);
 
     data->lbl_status = lbl_status;
     data->btn_start = btn_start;
     data->btn_stop = btn_stop;
     data->entry_buffer = buffer_port;
     data->entry_buffer_max_cons = buffer_max_cons;
+    data->entry_buffer_path = buffer_path;
 
     gtk_grid_attach(GTK_GRID(grid), lbl_status_title, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), lbl_port_title, 1, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), lbl_status, 0, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), entry_port, 1, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), btn_start, 0, 2, 3, 1);
-    gtk_grid_attach(GTK_GRID(grid), btn_stop, 0, 3, 3, 1);
+    gtk_grid_attach(GTK_GRID(grid), lbl_path, 0, 2, 3, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry_path, 0, 3, 3, 1);
+    gtk_grid_attach(GTK_GRID(grid), btn_start, 0, 4, 3, 1);
+    gtk_grid_attach(GTK_GRID(grid), btn_stop, 0, 5, 3, 1);
     gtk_grid_attach(GTK_GRID(grid), lbl_max_cons_title, 2, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), entry_max_cons, 2, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), lbl_about, 0, 6, 3, 1);
 
     gtk_widget_set_margin_top(lbl_status_title, 10);
     gtk_widget_set_margin_top(lbl_max_cons_title, 10);
     gtk_widget_set_margin_top(lbl_port_title, 10);
+    gtk_widget_set_margin_top(lbl_path, 10);
+    gtk_label_set_xalign(GTK_LABEL(lbl_about), 1.0);
+    gtk_widget_set_margin_top(lbl_about, 20);
     gtk_entry_set_alignment(GTK_ENTRY(entry_port), 0.5);
     gtk_entry_set_alignment(GTK_ENTRY(entry_max_cons), 0.5);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
 
     gtk_window_set_child(GTK_WINDOW(window), center_box);
     gtk_center_box_set_center_widget(GTK_CENTER_BOX(center_box), grid);
 
     g_signal_connect(btn_start, "clicked", G_CALLBACK(btn_start_clicked), data);
-    g_signal_connect(btn_stop, "clicked", G_CALLBACK(btn_stop_clicked), data);
+    g_signal_connect(btn_stop, "clicked", G_CALLBACK(btn_stop_clicked), data);    
 
     gtk_widget_set_sensitive(btn_stop, FALSE);  // Initial state
 
@@ -303,6 +339,7 @@ int main(int argc, char **argv)
     int status;
 
     app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
+    main_app = app;
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
