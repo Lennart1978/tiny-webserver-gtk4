@@ -226,8 +226,7 @@ static void btn_start_clicked(GtkWidget *widget, gpointer user_data) {
         show_error_dialog(main_app, "Can't set HTML path");
         return;
     }
-    
-    gtk_label_set_label(GTK_LABEL(data->lbl_status), "On");
+    gtk_label_set_markup(GTK_LABEL(data->lbl_status), "<span foreground='green' weight='bold'>ON</span>");
     gtk_widget_set_sensitive(data->btn_start, FALSE);
     gtk_widget_set_sensitive(data->btn_stop, TRUE);
     
@@ -252,7 +251,7 @@ static void btn_stop_clicked(GtkWidget *widget, gpointer user_data) {
         server_thread = NULL;
     }
 
-    gtk_label_set_label(GTK_LABEL(data->lbl_status), "Off");
+    gtk_label_set_markup(GTK_LABEL(data->lbl_status), "<span foreground='red' weight='bold'>OFF</span>");
     gtk_widget_set_sensitive(data->btn_start, TRUE);
     gtk_widget_set_sensitive(data->btn_stop, FALSE);
 }
@@ -272,12 +271,15 @@ static void activate(GtkApplication *app, gpointer user_data)
   
     grid = gtk_grid_new();
     center_box = gtk_center_box_new();
-    lbl_status = gtk_label_new("Off");
+    lbl_status = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(lbl_status), "<span foreground='red' weight='bold'>OFF</span>");
+    
     lbl_port_title = gtk_label_new("Port:");
     lbl_status_title = gtk_label_new("Status:");
     lbl_max_cons_title = gtk_label_new("Max connections:");
     lbl_path = gtk_label_new("Path to index.html:");
-    lbl_about = gtk_label_new("Version: 1.2 - 2024 by Lennart Martens");
+    lbl_about = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(lbl_about), "<span foreground='grey' style='italic'>V 1.3 - 2024 Lennart Martens</span>");
     entry_max_cons = gtk_entry_new();
     entry_port = gtk_entry_new();
     entry_path = gtk_entry_new();
@@ -328,7 +330,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect(btn_start, "clicked", G_CALLBACK(btn_start_clicked), data);
     g_signal_connect(btn_stop, "clicked", G_CALLBACK(btn_stop_clicked), data);    
 
-    gtk_widget_set_sensitive(btn_stop, FALSE);  // Initial state
+    gtk_widget_set_sensitive(btn_stop, FALSE);
 
     gtk_window_present(GTK_WINDOW(window));
 }
@@ -338,7 +340,7 @@ int main(int argc, char **argv)
     GtkApplication *app;
     int status;
 
-    app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
+    app = gtk_application_new("com.lennart.webserver-gtk", G_APPLICATION_DEFAULT_FLAGS);
     main_app = app;
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     status = g_application_run(G_APPLICATION(app), argc, argv);
