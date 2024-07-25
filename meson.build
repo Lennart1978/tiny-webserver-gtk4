@@ -1,4 +1,4 @@
-project('webserver-gtk', 'c', version: '1.2')
+project('webserver-gtk', 'c', version: '1.3')
 
 sources = [
     'main.c'
