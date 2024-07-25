@@ -6,6 +6,5 @@ mkdir builddir &&
 meson setup builddir &&
 meson compile &&
 sudo ./webserver-gtk
-<br></i><br>
-<p>Put startpage "index.html" in the same folder of webserver-gtk executable.</p>
+<br></i>
 
