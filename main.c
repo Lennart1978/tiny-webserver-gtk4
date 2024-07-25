@@ -11,12 +11,14 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #define DEFAULT_FILE "index.html"
 
+char cwd[PATH_MAX];
 int global_port = 80;
 int global_max_cons = 20;
-char global_path[256] = ".";
+char global_path[PATH_MAX];
 GtkApplication *main_app;
 bool stop_server = false;
 GThread *server_thread = NULL;
@@ -29,6 +31,12 @@ typedef struct {
     GtkEntryBuffer *entry_buffer_max_cons;
     GtkEntryBuffer *entry_buffer_path;
 } WidgetData;
+
+void get_cwd()
+{
+    if (getcwd(cwd, sizeof(cwd)) == NULL)
+        perror("getcwd() error");
+}
 
 void show_error_dialog(GtkApplication *app, const char *message) {
     GtkWidget *dialog;      
@@ -273,6 +281,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     center_box = gtk_center_box_new();
     lbl_status = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(lbl_status), "<span foreground='red' weight='bold'>OFF</span>");
+    get_cwd();
+    strcpy(global_path, cwd);
     
     lbl_port_title = gtk_label_new("Port:");
     lbl_status_title = gtk_label_new("Status:");
@@ -291,7 +301,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_entry_set_buffer(GTK_ENTRY(entry_port), buffer_port);
     buffer_max_cons = gtk_entry_buffer_new("20", -1);
     gtk_entry_set_buffer(GTK_ENTRY(entry_max_cons), buffer_max_cons);
-    buffer_path = gtk_entry_buffer_new(".", -1);
+    buffer_path = gtk_entry_buffer_new(global_path, -1);
     gtk_entry_set_buffer(GTK_ENTRY(entry_path), buffer_path);
 
     data->lbl_status = lbl_status;
