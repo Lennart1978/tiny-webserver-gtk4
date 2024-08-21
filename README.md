@@ -4,7 +4,7 @@
 <p>Default path to index.html is current working dir</p><img src="screenshot3.png" alt="screenshot"></img></p>
 
 ```bash
-mkdir builddir && meson setup -C builddir && meson compile -C builddir &&
+mkdir builddir && meson setup builddir && meson compile -C builddir &&
 ```
 
 Start webserver-gtk with sudo
