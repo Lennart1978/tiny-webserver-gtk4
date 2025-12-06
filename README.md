@@ -13,3 +13,7 @@ For a testrun you can copy the file "index.html" to your server path.
 In your browser open: http://localhost:8080/
 
 Enjoy!
+##
+Version: 1.5 
+
+
