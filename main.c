@@ -233,7 +233,8 @@ gpointer start_server(gpointer user_data)
     
     int port_value = data->config.port;
     printf("webserver: Start server on port %d max. %d connections. Path to index.html:%s\n", port_value, data->config.max_cons, data->config.path);
-    int sock_fd, client_fd, err, addr_size;
+    int sock_fd, client_fd, err;
+    socklen_t addr_size;
     struct sockaddr_in my_addr, client_addr;
     fd_set read_fds;
     struct timeval tv;
@@ -392,7 +393,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     lbl_max_cons_title = gtk_label_new("Max connections:");
     lbl_path = gtk_label_new("Path to index.html:");
     lbl_about = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(lbl_about), "<span foreground='grey' style='italic'>V 1.3 - 2024 Lennart Martens</span>");
+    gtk_label_set_markup(GTK_LABEL(lbl_about), "<span foreground='grey' style='italic'>V 1.5 - 2025 Lennart Martens</span>");
     entry_max_cons = gtk_entry_new();
     entry_port = gtk_entry_new();
     entry_path = gtk_entry_new();
